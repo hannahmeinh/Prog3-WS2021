@@ -70,11 +70,47 @@ Board BoardRepository::getBoard() {
 }
 
 std::vector<Column> BoardRepository::getColumns() {
-    throw NotImplementedException();
+    string sqlGetColumns = "SELECT * FROM column";
+
+    int result;
+    char *errorMessage = nullptr;
+    vector<Column> columns;
+
+    result = sqlite3_exec(database, sqlGetColumns.c_str(), queryCallbackAllColumns, &columns, &errorMessage);
+    handleSQLError(result, errorMessage);
+
+    if (SQLITE_OK == result && !columns.empty()) {
+        for (Column &c : columns) {
+            vector<Item> items = getItems(c.getId());
+            for (Item &i : items) {
+                c.addItem(i);
+            }
+        }
+        return columns;
+    }
+
+    return {};
 }
 
 std::optional<Column> BoardRepository::getColumn(int id) {
-    throw NotImplementedException();
+    string sqlGetColumn = "SELECT column.id, name, column.position FROM column WHERE id = '" + to_string(id) + "'";
+
+    int result = 0;
+    char *errorMessage = nullptr;
+    Column column(-1, "", 0);
+
+    result = sqlite3_exec(database, sqlGetColumn.c_str(), queryCallbackSingleColumn, &column, &errorMessage);
+    handleSQLError(result, errorMessage);
+
+    if (SQLITE_OK == result) {
+        if (column.getId() != -1) {
+            for (Item i : getItems(id)) {
+                column.addItem(i);
+            }
+            return column;
+        }
+    }
+    return std::nullopt;
 }
 
 std::optional<Column> BoardRepository::postColumn(std::string name, int position) {
@@ -115,11 +151,33 @@ void BoardRepository::deleteColumn(int id) {
 }
 
 std::vector<Item> BoardRepository::getItems(int columnId) {
-    throw NotImplementedException();
+    string sqlGetItems = "SELECT id, title, position, date FROM item WHERE column_id = " + to_string(columnId);
+
+    int result = 0;
+    char *errormessage = nullptr;
+    std::vector<Item> items;
+
+    result = sqlite3_exec(database, sqlGetItems.c_str(), queryCallbackAllItems, &items, &errormessage);
+    handleSQLError(result, errormessage);
+    if (items.empty())
+        return {};
+    return items;
 }
 
 std::optional<Item> BoardRepository::getItem(int columnId, int itemId) {
-    throw NotImplementedException();
+    string sqlGetItem = "SELECT id, title, position, date FROM item WHERE column_id = '" + to_string(columnId) + "' AND id = '" + to_string(itemId) + "'";
+    int result = 0;
+    char *errorMessage = nullptr;
+    Item returnItem(-1, "", -1, "");
+
+    result = sqlite3_exec(database, sqlGetItem.c_str(), queryCallbackSingleItem, &returnItem, &errorMessage);
+    handleSQLError(result, errorMessage);
+
+    if (SQLITE_OK == result) {
+        if (returnItem.getId() != -1)
+            return returnItem;
+    }
+    return std::nullopt;
 }
 
 std::optional<Item> BoardRepository::postItem(int columnId, std::string title, int position) {
@@ -206,5 +264,46 @@ void BoardRepository::createDummyData() {
   I want to show you how the signature of this "callback function" may look like in order to work with sqlite3_exec()
 */
 int BoardRepository::queryCallback(void *data, int numberOfColumns, char **fieldValues, char **columnNames) {
+    return 0;
+}
+
+//Wussten nicht wohin, copy-paste
+int BoardRepository::queryCallbackAllItems(void *data, int numberOfColumns, char **fieldValues, char **columnNames) {
+    vector<Item> *items = static_cast<vector<Item> *>(data);
+
+    Item item(stoi(fieldValues[0]), fieldValues[1], stoi(fieldValues[2]), fieldValues[3]);
+    items->push_back(item);
+
+    return 0;
+}
+
+int BoardRepository::queryCallbackSingleItem(void *data, int numberOfColumns, char **fieldValues, char **columnNames) {
+    Item *item = static_cast<Item *>(data);
+
+    item->setID(stoi(fieldValues[0]));
+    item->setTitle(fieldValues[1]);
+    item->setPos(stoi(fieldValues[2]));
+    item->setTimestamp(fieldValues[3]);
+
+    return 0;
+}
+
+int BoardRepository::queryCallbackSingleColumn(void *data, int numberOfColumns, char **fieldValues, char **columnNames) {
+    Column *column = static_cast<Column *>(data);
+
+    column->setID(stoi(fieldValues[0]));
+    column->setName(fieldValues[1]);
+    column->setPos(stoi(fieldValues[2]));
+
+    return 0;
+}
+
+int BoardRepository::queryCallbackAllColumns(void *data, int numberOfColumns, char **fieldValues, char **columnNames) {
+    vector<Column> *columns = static_cast<vector<Column> *>(data);
+
+    Column column(stoi(fieldValues[0]), fieldValues[1], stoi(fieldValues[2]));
+
+    columns->push_back(column);
+
     return 0;
 }

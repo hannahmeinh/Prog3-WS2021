@@ -41,6 +41,12 @@ class BoardRepository : public RepositoryIf {
     static inline int const INVALID_ID = -1;
 
     static std::string const databaseFile;
+
+    //wussten nicht wohin, copy-paste
+    static int queryCallbackAllItems(void *data, int numberOfColumns, char **fieldValues, char **columnNames);
+    static int queryCallbackSingleItem(void *data, int numberOfColumns, char **fieldValues, char **columnNames);
+    static int queryCallbackSingleColumn(void *data, int numberOfColumns, char **fieldValues, char **columnNames);
+    static int queryCallbackAllColumns(void *data, int numberOfColumns, char **fieldValues, char **columnNames);
 };
 
 } // namespace SQLite
